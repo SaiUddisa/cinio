@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  cinio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinio
+    restart: always
+    ports:
+      - "10500:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
