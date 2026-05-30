@@ -677,6 +677,7 @@ export default function Home() {
   // Get preview helper type
   const getPreviewType = (fileName) => {
     const ext = fileName.split('.').pop().toLowerCase();
+    if (ext === 'pdf') return 'pdf';
     const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
     const videoExts = ['mp4', 'webm', 'ogg', 'mov'];
     const audioExts = ['mp3', 'wav', 'ogg', 'aac'];
@@ -1453,6 +1454,15 @@ export default function Home() {
               ) : selectedItem.type === 'file' ? (
                 (() => {
                   const type = getPreviewType(selectedItem.name);
+                  if (type === 'pdf') {
+                    return (
+                      <iframe
+                        src={getObjectUrl(selectedItem, 'view')}
+                        className="media-preview-pdf"
+                        title={selectedItem.displayName}
+                      />
+                    );
+                  }
                   if (type === 'image') {
                     return (
                       <img
