@@ -9,6 +9,54 @@ import {
   Play, Settings, Eye, LogOut, ArrowLeft, ArrowUp, MoreVertical
 } from 'lucide-react';
 
+const getAccentColors = (item) => {
+  let hex = '#fbbf24'; // Warning yellow/amber default (folder color)
+  let hover = '#d97706';
+  let rgb = '251, 191, 36';
+  
+  if (item) {
+    if (item.type === 'folder') {
+      hex = '#fbbf24';
+      hover = '#d97706';
+      rgb = '251, 191, 36';
+    } else {
+      const ext = item.name.split('.').pop().toLowerCase();
+      const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
+      const videoExts = ['mp4', 'webm', 'ogg', 'mov'];
+      const audioExts = ['mp3', 'wav', 'ogg', 'aac'];
+      const codeExts = ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'py', 'sh', 'go', 'rs', 'yaml', 'yml', 'xml'];
+      const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md'];
+
+      if (imageExts.includes(ext)) {
+        hex = '#a78bfa'; // purple
+        hover = '#8b5cf6';
+        rgb = '167, 139, 250';
+      } else if (videoExts.includes(ext)) {
+        hex = '#fb7185'; // rose
+        hover = '#f43f5e';
+        rgb = '251, 113, 133';
+      } else if (audioExts.includes(ext)) {
+        hex = '#38bdf8'; // sky
+        hover = '#0ea5e9';
+        rgb = '56, 189, 248';
+      } else if (codeExts.includes(ext)) {
+        hex = '#34d399'; // green
+        hover = '#10b981';
+        rgb = '52, 211, 153';
+      } else if (docExts.includes(ext)) {
+        hex = '#fbbf24'; // amber/yellow
+        hover = '#d97706';
+        rgb = '251, 191, 36';
+      } else {
+        hex = '#9ca3af'; // gray
+        hover = '#6b7280';
+        rgb = '156, 163, 175';
+      }
+    }
+  }
+  return { hex, hover, rgb };
+};
+
 export default function Home() {
   // --- STATE MANAGEMENT ---
   const [profiles, setProfiles] = useState([]);
@@ -846,8 +894,17 @@ export default function Home() {
 
   const activeProfile = getActiveProfile();
 
+  const accentColors = getAccentColors(selectedItem);
+  const containerStyle = {
+    '--accent': accentColors.hex,
+    '--accent-hover': accentColors.hover,
+    '--accent-rgb': accentColors.rgb,
+    '--shadow-accent': `0 0 20px 0 rgba(${accentColors.rgb}, 0.15)`,
+    '--border-focus': `rgba(${accentColors.rgb}, 0.4)`
+  };
+
   return (
-    <div className="app-container" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="app-container" style={containerStyle} onDragOver={handleDragOver} onDrop={handleDrop}>
 
       {/* Toast Notifications */}
       <div className="toast-container">
@@ -871,27 +928,15 @@ export default function Home() {
         {/* Logo Banner */}
         <div className="logo-section">
           <div className="logo-icon">
-            <svg width="36" height="36" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#c084fc" />
-                  <stop offset="50%" stopColor="#8b5cf6" />
-                  <stop offset="100%" stopColor="#6366f1" />
-                </linearGradient>
-                <linearGradient id="eye-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#ec4899" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
-                </linearGradient>
-                <filter id="logo-glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="2" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
-              <path d="M19 4 L31 10.5 L31 23.5 L19 30 L7 23.5 L7 10.5 Z" stroke="url(#logo-grad)" strokeWidth="2.5" strokeLinejoin="round" />
-              <path d="M19 4 L19 30" stroke="url(#logo-grad)" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
-              <path d="M7 10.5 L19 17 L31 10.5" stroke="url(#logo-grad)" strokeWidth="1.5" opacity="0.8" />
-              <circle cx="19" cy="17" r="4.5" fill="url(#eye-grad)" filter="url(#logo-glow)" />
-              <circle cx="19" cy="17" r="8" stroke="url(#eye-grad)" strokeWidth="1.2" strokeDasharray="4 2.5" />
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Isometric Box / Bucket outer shell */}
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 7V17L12 22V12" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
+              <path d="M22 7V17L12 22" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              
+              {/* Floating Aperture / Eye inside representing vision in I/O */}
+              <circle cx="12" cy="12" r="3.5" fill="var(--bg-secondary)" stroke="var(--accent)" strokeWidth="1.5"/>
+              <circle cx="12" cy="12" r="1.2" fill="var(--accent)"/>
             </svg>
           </div>
           <div className="logo-text">
@@ -955,11 +1000,11 @@ export default function Home() {
                             fontWeight: '600',
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px',
-                            background: 'rgba(139, 92, 246, 0.15)',
+                            background: 'rgba(var(--accent-rgb), 0.15)',
                             color: 'var(--accent)',
                             padding: '1px 6px',
                             borderRadius: '4px',
-                            border: '1px solid rgba(139, 92, 246, 0.2)'
+                            border: '1px solid rgba(var(--accent-rgb), 0.2)'
                           }}>
                             Config
                           </span>
@@ -1412,7 +1457,7 @@ export default function Home() {
                     key={item.name}
                     className={`item-list-row ${item.type === 'folder' ? 'folder-row' : ''}`}
                     onClick={() => handleViewFile(item)}
-                    style={selectedItem?.name === item.name ? { borderColor: 'var(--accent)', background: 'rgba(139, 92, 246, 0.03)' } : {}}
+                    style={selectedItem?.name === item.name ? { borderColor: 'var(--accent)', background: 'rgba(var(--accent-rgb), 0.03)' } : {}}
                   >
                     <div className="item-list-icon">
                       {getFileIcon(item.name, item.type)}
@@ -1949,7 +1994,7 @@ export default function Home() {
               <div style={{ width: '100%', background: 'var(--bg-tertiary)', height: '8px', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                 <div style={{
                   width: `${(uploadStatus.uploadedCount / uploadStatus.totalFiles) * 100}%`,
-                  background: 'linear-gradient(to right, var(--accent), #d946ef)',
+                  background: 'linear-gradient(to right, rgba(var(--accent-rgb), 0.6), var(--accent))',
                   height: '100%',
                   borderRadius: '4px',
                   transition: 'width 0.3s ease'

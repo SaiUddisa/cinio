@@ -1,22 +1,10 @@
-<svg width="32" height="32" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#c084fc" />
-      <stop offset="50%" stop-color="#8b5cf6" />
-      <stop offset="100%" stop-color="#6366f1" />
-    </linearGradient>
-    <linearGradient id="eye-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ec4899" />
-      <stop offset="100%" stop-color="#8b5cf6" />
-    </linearGradient>
-    <filter id="logo-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="2" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
-  </defs>
-  <path d="M19 4 L31 10.5 L31 23.5 L19 30 L7 23.5 L7 10.5 Z" stroke="url(#logo-grad)" stroke-width="2.5" stroke-linejoin="round" />
-  <path d="M19 4 L19 30" stroke="url(#logo-grad)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.6" />
-  <path d="M7 10.5 L19 17 L31 10.5" stroke="url(#logo-grad)" stroke-width="1.5" opacity="0.8" />
-  <circle cx="19" cy="17" r="4.5" fill="url(#eye-grad)" filter="url(#logo-glow)" />
-  <circle cx="19" cy="17" r="8" stroke="url(#eye-grad)" stroke-width="1.2" stroke-dasharray="4 2.5" />
+<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  {/* Isometric Box / Bucket outer shell */}
+  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#db8a0e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M2 7V17L12 22V12" stroke="#db8a0e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+  <path d="M22 7V17L12 22" stroke="#db8a0e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  {/* Floating Aperture / Eye inside representing vision in I/O */}
+  <circle cx="12" cy="12" r="3.5" fill="#111115" stroke="#db8a0e" stroke-width="1.5"/>
+  <circle cx="12" cy="12" r="1.2" fill="#db8a0e"/>
 </svg>
