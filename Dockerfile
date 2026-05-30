@@ -1,15 +1,15 @@
 # Stage 1: Install dependencies
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy dependency definition files
 COPY package.json package-lock.json* ./
-# Install dependencies (use npm ci if package-lock is present, fallback to npm install)
+# Install dependencies
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Stage 2: Build the application
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -21,7 +21,7 @@ ENV NODE_ENV=production
 RUN npm run build
 
 # Stage 3: Runner stage using minimal size alpine image
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
