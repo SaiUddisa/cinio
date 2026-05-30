@@ -10,51 +10,11 @@ import {
 } from 'lucide-react';
 
 const getAccentColors = (item) => {
-  let hex = '#db8a0e'; // Warning yellow/amber default (folder color)
-  let hover = '#be6500';
-  let rgb = '219, 138, 14';
-  
-  if (item) {
-    if (item.type === 'folder') {
-      hex = '#db8a0e';
-      hover = '#be6500';
-      rgb = '219, 138, 14';
-    } else {
-      const ext = item.name.split('.').pop().toLowerCase();
-      const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
-      const videoExts = ['mp4', 'webm', 'ogg', 'mov'];
-      const audioExts = ['mp3', 'wav', 'ogg', 'aac'];
-      const codeExts = ['js', 'jsx', 'ts', 'tsx', 'json', 'jsonl', 'toml', 'xml', 'html', 'css', 'py', 'sh', 'go', 'rs', 'yaml', 'yml'];
-      const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md'];
-
-      if (imageExts.includes(ext)) {
-        hex = '#a78bfa'; // purple
-        hover = '#8b5cf6';
-        rgb = '167, 139, 250';
-      } else if (videoExts.includes(ext)) {
-        hex = '#fb7185'; // rose
-        hover = '#f43f5e';
-        rgb = '251, 113, 133';
-      } else if (audioExts.includes(ext)) {
-        hex = '#38bdf8'; // sky
-        hover = '#0ea5e9';
-        rgb = '56, 189, 248';
-      } else if (codeExts.includes(ext)) {
-        hex = '#34d399'; // green
-        hover = '#10b981';
-        rgb = '52, 211, 153';
-      } else if (docExts.includes(ext)) {
-        hex = '#db8a0e'; // amber/yellow
-        hover = '#be6500';
-        rgb = '219, 138, 14';
-      } else {
-        hex = '#9ca3af'; // gray
-        hover = '#6b7280';
-        rgb = '156, 163, 175';
-      }
-    }
-  }
-  return { hex, hover, rgb };
+  return {
+    hex: '#db8a0e',
+    hover: '#be6500',
+    rgb: '219, 138, 14'
+  };
 };
 
 export default function Home() {
