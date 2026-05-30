@@ -1036,7 +1036,7 @@ export default function Home() {
                         <HardDrive size={16} />
                         <span className="bucket-name" title={b.name}>{b.name}</span>
                       </div>
-                      <div className="bucket-item-actions" onClick={e => e.stopPropagation()}>
+                      {/* <div className="bucket-item-actions" onClick={e => e.stopPropagation()}>
                         <div className="item-dropdown-container">
                           <button
                             className="item-action-btn three-dots"
@@ -1065,7 +1065,7 @@ export default function Home() {
                             </div>
                           )}
                         </div>
-                      </div>
+                      </div> */}
                     </div>
                   ))}
                 </div>
