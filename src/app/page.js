@@ -64,6 +64,13 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
+  const [uploadStatus, setUploadStatus] = useState({
+    isUploading: false,
+    totalFiles: 0,
+    uploadedCount: 0,
+    currentFileName: ''
+  });
+
   // Universal confirmation modal state
   const [confirmState, setConfirmState] = useState(null);
   const [confirmInputText, setConfirmInputText] = useState('');
@@ -115,7 +122,7 @@ export default function Home() {
         // Select last used profile, but check if it's still available in the combined list
         const lastActiveId = localStorage.getItem('cinio_active_profile_id');
         const activeExists = combined.some(p => p.id === lastActiveId);
-        
+
         if (activeExists && lastActiveId) {
           setActiveProfileId(lastActiveId);
         } else if (defaultProfile) {
@@ -432,11 +439,24 @@ export default function Home() {
       actionVariant: 'primary',
       onConfirm: async () => {
         setLoading(prev => ({ ...prev, operation: true }));
+        setUploadStatus({
+          isUploading: true,
+          totalFiles: files.length,
+          uploadedCount: 0,
+          currentFileName: files[0]?.name || ''
+        });
+
         let successCount = 0;
         let failCount = 0;
 
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
+          setUploadStatus(prev => ({
+            ...prev,
+            currentFileName: file.name,
+            uploadedCount: i
+          }));
+
           const formData = new FormData();
           formData.append('bucket', activeBucket);
           formData.append('prefix', prefix);
@@ -461,6 +481,12 @@ export default function Home() {
           }
         }
 
+        setUploadStatus(prev => ({
+          ...prev,
+          uploadedCount: files.length,
+          currentFileName: ''
+        }));
+
         if (successCount > 0) {
           showToast(`Successfully uploaded ${successCount} file(s)`);
           fetchObjects();
@@ -470,6 +496,9 @@ export default function Home() {
         }
 
         setLoading(prev => ({ ...prev, operation: false }));
+        setTimeout(() => {
+          setUploadStatus(prev => ({ ...prev, isUploading: false }));
+        }, 800);
       }
     });
   };
@@ -629,7 +658,7 @@ export default function Home() {
         const updatedProfiles = [...profiles, newProfileEntry];
 
         setProfiles(updatedProfiles);
-        
+
         // Save only custom profiles (not the 'default' config profile) to localStorage
         const customProfiles = updatedProfiles.filter(p => p.id !== 'default');
         localStorage.setItem('cinio_profiles', JSON.stringify(customProfiles));
@@ -669,7 +698,7 @@ export default function Home() {
       onConfirm: () => {
         const updatedProfiles = profiles.filter(p => p.id !== profileId);
         setProfiles(updatedProfiles);
-        
+
         // Save only custom profiles (not the 'default' config profile) to localStorage
         const customProfiles = updatedProfiles.filter(p => p.id !== 'default');
         localStorage.setItem('cinio_profiles', JSON.stringify(customProfiles));
@@ -1889,6 +1918,47 @@ export default function Home() {
               >
                 {loading.operation ? 'Processing...' : (confirmState.actionLabel || 'Confirm')}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Upload Progress Overlay */}
+      {uploadStatus.isUploading && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: '400px', padding: '24px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <RefreshCw size={36} className="animate-spin" style={{ color: 'var(--accent)', animation: 'spin 1.5s linear infinite' }} />
+                <Upload size={16} style={{ position: 'absolute', color: 'var(--text-primary)' }} />
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                  {uploadStatus.uploadedCount === uploadStatus.totalFiles ? 'Upload Complete!' : 'Uploading Files...'}
+                </h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', wordBreak: 'break-all', minHeight: '20px' }}>
+                  {uploadStatus.uploadedCount === uploadStatus.totalFiles
+                    ? 'Refreshing explorer...'
+                    : `Uploading: ${uploadStatus.currentFileName}`
+                  }
+                </p>
+              </div>
+
+              {/* Progress Bar Container */}
+              <div style={{ width: '100%', background: 'var(--bg-tertiary)', height: '8px', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                <div style={{
+                  width: `${(uploadStatus.uploadedCount / uploadStatus.totalFiles) * 100}%`,
+                  background: 'linear-gradient(to right, var(--accent), #d946ef)',
+                  height: '100%',
+                  borderRadius: '4px',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+
+              <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                {uploadStatus.uploadedCount} of {uploadStatus.totalFiles} files uploaded
+              </span>
             </div>
           </div>
         </div>
