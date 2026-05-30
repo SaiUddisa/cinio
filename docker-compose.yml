@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: cinio
-    restart: always
+    restart: no
     ports:
       - "10500:3000"
     environment:

@@ -81,27 +81,57 @@ export default function Home() {
 
   // --- INITIAL LOADING ---
   useEffect(() => {
-    // Load profiles from localStorage
-    const savedProfiles = localStorage.getItem('cinio_profiles');
-    if (savedProfiles) {
+    const initializeProfiles = async () => {
+      let defaultProfile = null;
       try {
-        const parsed = JSON.parse(savedProfiles);
-        setProfiles(parsed);
-        if (parsed.length > 0) {
-          // Select last used profile or the first one
-          const lastActiveId = localStorage.getItem('cinio_active_profile_id') || parsed[0].id;
-          setActiveProfileId(lastActiveId);
-        } else {
-          // Open profile modal if no profiles
-          setModals(prev => ({ ...prev, profileForm: true }));
+        const response = await fetch('/api/minio/config');
+        const data = await response.json();
+        if (data.success && data.config) {
+          defaultProfile = data.config;
         }
-      } catch (e) {
-        console.error('Error parsing profiles', e);
+      } catch (err) {
+        console.error('Failed to fetch default config:', err);
       }
-    } else {
-      // Open profile modal if no profiles
-      setModals(prev => ({ ...prev, profileForm: true }));
-    }
+
+      // Load profiles from localStorage
+      let customProfiles = [];
+      const savedProfiles = localStorage.getItem('cinio_profiles');
+      if (savedProfiles) {
+        try {
+          customProfiles = JSON.parse(savedProfiles);
+        } catch (e) {
+          console.error('Error parsing profiles', e);
+        }
+      }
+
+      // Filter out any stored profile that accidentally has the ID 'default' to avoid conflicts
+      customProfiles = customProfiles.filter(p => p.id !== 'default');
+
+      // Combine profiles, with the default profile at the top if it exists
+      const combined = defaultProfile ? [defaultProfile, ...customProfiles] : customProfiles;
+      setProfiles(combined);
+
+      if (combined.length > 0) {
+        // Select last used profile, but check if it's still available in the combined list
+        const lastActiveId = localStorage.getItem('cinio_active_profile_id');
+        const activeExists = combined.some(p => p.id === lastActiveId);
+        
+        if (activeExists && lastActiveId) {
+          setActiveProfileId(lastActiveId);
+        } else if (defaultProfile) {
+          // If default profile exists, connect to it by default
+          setActiveProfileId('default');
+        } else {
+          // Otherwise fallback to the first profile
+          setActiveProfileId(combined[0].id);
+        }
+      } else {
+        // Open profile modal if no profiles exist at all
+        setModals(prev => ({ ...prev, profileForm: true }));
+      }
+    };
+
+    initializeProfiles();
   }, []);
 
   // Fetch buckets when active profile changes
@@ -192,6 +222,18 @@ export default function Home() {
     }
   };
 
+  const handleDefaultProfileFailure = () => {
+    const custom = profiles.filter(p => p.id !== 'default');
+    if (custom.length > 0) {
+      showToast('Default profile connection failed. Switching to custom profile.', 'error');
+      setActiveProfileId(custom[0].id);
+    } else {
+      showToast('Default profile connection failed. Please configure a custom profile.', 'error');
+      setActiveProfileId('');
+      setModals(prev => ({ ...prev, profileForm: true }));
+    }
+  };
+
   // Fetch buckets
   const fetchBuckets = async (profile) => {
     setLoading(prev => ({ ...prev, buckets: true }));
@@ -212,9 +254,15 @@ export default function Home() {
         }
       } else {
         showToast(`Error fetching buckets: ${data.error}`, 'error');
+        if (profile.id === 'default') {
+          handleDefaultProfileFailure();
+        }
       }
     } catch (error) {
       showToast(`Error fetching buckets: ${error.message}`, 'error');
+      if (profile.id === 'default') {
+        handleDefaultProfileFailure();
+      }
     } finally {
       setLoading(prev => ({ ...prev, buckets: false }));
     }
@@ -577,10 +625,14 @@ export default function Home() {
       actionVariant: 'primary',
       onConfirm: () => {
         const profileId = Date.now().toString();
-        const updatedProfiles = [...profiles, { ...newProfile, id: profileId }];
+        const newProfileEntry = { ...newProfile, id: profileId };
+        const updatedProfiles = [...profiles, newProfileEntry];
 
         setProfiles(updatedProfiles);
-        localStorage.setItem('cinio_profiles', JSON.stringify(updatedProfiles));
+        
+        // Save only custom profiles (not the 'default' config profile) to localStorage
+        const customProfiles = updatedProfiles.filter(p => p.id !== 'default');
+        localStorage.setItem('cinio_profiles', JSON.stringify(customProfiles));
         setActiveProfileId(profileId);
 
         // Reset form
@@ -602,6 +654,10 @@ export default function Home() {
 
   const handleDeleteProfile = (profileId, e) => {
     e.stopPropagation(); // Avoid selecting it
+    if (profileId === 'default') {
+      showToast('Cannot delete default profile configured on the server', 'error');
+      return;
+    }
     const profile = profiles.find(p => p.id === profileId);
     if (!profile) return;
 
@@ -613,7 +669,10 @@ export default function Home() {
       onConfirm: () => {
         const updatedProfiles = profiles.filter(p => p.id !== profileId);
         setProfiles(updatedProfiles);
-        localStorage.setItem('cinio_profiles', JSON.stringify(updatedProfiles));
+        
+        // Save only custom profiles (not the 'default' config profile) to localStorage
+        const customProfiles = updatedProfiles.filter(p => p.id !== 'default');
+        localStorage.setItem('cinio_profiles', JSON.stringify(customProfiles));
 
         if (activeProfileId === profileId) {
           if (updatedProfiles.length > 0) {
@@ -859,19 +918,42 @@ export default function Home() {
                     }}
                   >
                     <div className="profile-info">
-                      <div className="profile-name">{p.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div className="profile-name">{p.name}</div>
+                        {p.id === 'default' && (
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            background: 'rgba(139, 92, 246, 0.15)',
+                            color: 'var(--accent)',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(139, 92, 246, 0.2)'
+                          }}>
+                            Config
+                          </span>
+                        )}
+                      </div>
                       <div className="profile-host">
                         {p.useSSL ? 'https://' : 'http://'}{p.endpoint}{p.port ? `:${p.port}` : ''}
                       </div>
                     </div>
-                    <button
-                      className="icon-btn-small"
-                      title="Delete profile"
-                      onClick={(e) => handleDeleteProfile(p.id, e)}
-                      style={{ color: 'var(--text-muted)', opacity: 0.7 }}
-                    >
-                      <LogOut size={14} />
-                    </button>
+                    {p.id !== 'default' ? (
+                      <button
+                        className="icon-btn-small"
+                        title="Delete profile"
+                        onClick={(e) => handleDeleteProfile(p.id, e)}
+                        style={{ color: 'var(--text-muted)', opacity: 0.7 }}
+                      >
+                        <LogOut size={14} />
+                      </button>
+                    ) : (
+                      <span title="Configured in config.json" style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)', opacity: 0.5, padding: '2px' }}>
+                        <Server size={14} />
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

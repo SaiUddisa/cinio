@@ -1,0 +1,9 @@
+{
+  "name": "Default MinIO",
+  "endpoint": "localhost",
+  "port": 9000,
+  "useSSL": false,
+  "accessKey": "minioadmin",
+  "secretKey": "minioadmin",
+  "defaultBucket": ""
+}

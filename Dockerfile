@@ -43,6 +43,7 @@ RUN chown nextjs:nodejs .next
 # Copy standalone build assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/config.json ./config.json
 
 USER nextjs
 
