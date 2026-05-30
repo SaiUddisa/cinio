@@ -10,21 +10,21 @@ import {
 } from 'lucide-react';
 
 const getAccentColors = (item) => {
-  let hex = '#fbbf24'; // Warning yellow/amber default (folder color)
-  let hover = '#d97706';
-  let rgb = '251, 191, 36';
+  let hex = '#db8a0e'; // Warning yellow/amber default (folder color)
+  let hover = '#be6500';
+  let rgb = '219, 138, 14';
   
   if (item) {
     if (item.type === 'folder') {
-      hex = '#fbbf24';
-      hover = '#d97706';
-      rgb = '251, 191, 36';
+      hex = '#db8a0e';
+      hover = '#be6500';
+      rgb = '219, 138, 14';
     } else {
       const ext = item.name.split('.').pop().toLowerCase();
       const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
       const videoExts = ['mp4', 'webm', 'ogg', 'mov'];
       const audioExts = ['mp3', 'wav', 'ogg', 'aac'];
-      const codeExts = ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'py', 'sh', 'go', 'rs', 'yaml', 'yml', 'xml'];
+      const codeExts = ['js', 'jsx', 'ts', 'tsx', 'json', 'jsonl', 'toml', 'xml', 'html', 'css', 'py', 'sh', 'go', 'rs', 'yaml', 'yml'];
       const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md'];
 
       if (imageExts.includes(ext)) {
@@ -44,9 +44,9 @@ const getAccentColors = (item) => {
         hover = '#10b981';
         rgb = '52, 211, 153';
       } else if (docExts.includes(ext)) {
-        hex = '#fbbf24'; // amber/yellow
-        hover = '#d97706';
-        rgb = '251, 191, 36';
+        hex = '#db8a0e'; // amber/yellow
+        hover = '#be6500';
+        rgb = '219, 138, 14';
       } else {
         hex = '#9ca3af'; // gray
         hover = '#6b7280';
@@ -818,9 +818,9 @@ export default function Home() {
     const videoExts = ['mp4', 'webm', 'ogg', 'mov'];
     const audioExts = ['mp3', 'wav', 'ogg', 'aac'];
     const textExts = [
-      'txt', 'md', 'html', 'css', 'js', 'jsx', 'ts', 'tsx', 'json', 'xml',
-      'yaml', 'yml', 'env', 'conf', 'ini', 'sh', 'py', 'go', 'rs', 'cpp',
-      'h', 'java', 'cs', 'php', 'rb', 'lock', 'config'
+      'txt', 'md', 'html', 'css', 'js', 'jsx', 'ts', 'tsx', 'json', 'jsonl',
+      'toml', 'xml', 'yaml', 'yml', 'env', 'conf', 'ini', 'sh', 'py', 'go',
+      'rs', 'cpp', 'h', 'java', 'cs', 'php', 'rb', 'lock', 'config'
     ];
 
     if (imageExts.includes(ext)) return 'image';
@@ -837,7 +837,7 @@ export default function Home() {
     const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
     const videoExts = ['mp4', 'webm', 'ogg', 'mov'];
     const audioExts = ['mp3', 'wav', 'ogg', 'aac'];
-    const codeExts = ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'py', 'sh', 'go', 'rs', 'yaml', 'yml', 'xml'];
+    const codeExts = ['js', 'jsx', 'ts', 'tsx', 'json', 'jsonl', 'toml', 'xml', 'html', 'css', 'py', 'sh', 'go', 'rs', 'yaml', 'yml'];
     const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md'];
 
     if (imageExts.includes(ext)) return <ImageIcon size={24} style={{ color: '#a78bfa' }} />;
@@ -1571,7 +1571,7 @@ export default function Home() {
                   <>
                     <a
                       className="btn btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '13px' }}
+                      style={{ padding: '6px 12px', fontSize: '13px', textDecoration: 'none' }}
                       href={getObjectUrl(selectedItem, 'download')}
                       download={selectedItem.displayName}
                     >
@@ -1678,7 +1678,7 @@ export default function Home() {
                       <p style={{ fontSize: '13px', marginTop: '6px' }}>This binary file type cannot be rendered inline.</p>
                       <a
                         className="btn btn-primary"
-                        style={{ marginTop: '16px' }}
+                        style={{ marginTop: '16px', textDecoration: 'none' }}
                         href={getObjectUrl(selectedItem, 'download')}
                       >
                         <Download size={14} />
