@@ -34,6 +34,84 @@ function getMimeType(fileName) {
   return mimes[ext] || 'application/octet-stream';
 }
 
+function resolveActualObjectName(objectName) {
+  if (objectName && objectName.endsWith('/')) {
+    const parts = objectName.split('/');
+    const folderName = parts[parts.length - 2]; // e.g. "Inst_Pre_Tension_v2.pdf"
+    const dotIndex = folderName.lastIndexOf('.');
+    if (dotIndex !== -1 && dotIndex < folderName.length - 1) {
+      const extension = folderName.substring(dotIndex + 1).toLowerCase();
+      const commonExtensions = [
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md',
+        'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'mp4', 'webm',
+        'ogg', 'mov', 'mp3', 'wav', 'aac', 'zip', 'tar', 'gz', 'json', 'toml',
+        'xml', 'html', 'css', 'js', 'py', 'sh', 'go', 'rs'
+      ];
+      if (commonExtensions.includes(extension)) {
+        return objectName + 'part.1';
+      }
+    }
+  }
+  return objectName;
+}
+
+function extractInlineData(metaBuffer, extension) {
+  const magicBytes = {
+    pdf: Buffer.from([0x25, 0x50, 0x44, 0x46]), // %PDF
+    png: Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+    jpg: Buffer.from([0xFF, 0xD8, 0xFF]),
+    jpeg: Buffer.from([0xFF, 0xD8, 0xFF]),
+    gif: Buffer.from([0x47, 0x49, 0x46, 0x38]), // GIF8
+    zip: Buffer.from([0x50, 0x4B, 0x03, 0x04]), // PK..
+    mp3: Buffer.from([0x49, 0x44, 0x33]), // ID3
+  };
+
+  const magic = magicBytes[extension];
+  if (magic) {
+    const index = metaBuffer.indexOf(magic);
+    if (index !== -1) {
+      return metaBuffer.slice(index);
+    }
+  }
+
+  if (extension === 'mp4') {
+    const index = metaBuffer.indexOf(Buffer.from('ftyp'));
+    if (index !== -1 && index >= 4) {
+      return metaBuffer.slice(index - 4);
+    }
+  }
+
+  if (extension === 'json') {
+    const start = metaBuffer.indexOf(Buffer.from('{'));
+    const end = metaBuffer.lastIndexOf(Buffer.from('}'));
+    if (start !== -1 && end !== -1 && end > start) {
+      return metaBuffer.slice(start, end + 1);
+    }
+  }
+  
+  if (extension === 'xml' || extension === 'html') {
+    const start = metaBuffer.indexOf(Buffer.from('<'));
+    const end = metaBuffer.lastIndexOf(Buffer.from('>'));
+    if (start !== -1 && end !== -1 && end > start) {
+      return metaBuffer.slice(start, end + 1);
+    }
+  }
+
+  let textStart = 0;
+  for (let i = metaBuffer.length - 1; i >= 0; i--) {
+    const char = metaBuffer[i];
+    if (char < 32 && char !== 9 && char !== 10 && char !== 13) {
+      textStart = i + 1;
+      break;
+    }
+  }
+  if (textStart > 8 && textStart < metaBuffer.length) {
+    return metaBuffer.slice(textStart);
+  }
+
+  return metaBuffer;
+}
+
 export async function GET(request) {
   try {
     const client = getMinioClient(request);
@@ -46,13 +124,32 @@ export async function GET(request) {
       return NextResponse.json({ success: false, error: 'Bucket and name parameters are required' }, { status: 400 });
     }
 
+    const resolvedObjectName = resolveActualObjectName(objectName);
+
     if (action === 'presigned') {
       // Generate a download link valid for 24 hours (86400 seconds)
-      const url = await client.presignedGetObject(bucketName, objectName, 86400);
+      const url = await client.presignedGetObject(bucketName, resolvedObjectName, 86400);
       return NextResponse.json({ success: true, url });
     }
 
-    const buffer = await getObjectContent(client, bucketName, objectName);
+    let buffer;
+    try {
+      buffer = await getObjectContent(client, bucketName, resolvedObjectName);
+    } catch (err) {
+      if (err.code === 'NoSuchKey' && resolvedObjectName.endsWith('/part.1')) {
+        const xlMetaName = resolvedObjectName.replace(/part\.1$/, 'xl.meta');
+        try {
+          const metaBuffer = await getObjectContent(client, bucketName, xlMetaName);
+          const cleanName = objectName.replace(/\/$/, '');
+          const ext = cleanName.split('.').pop().toLowerCase();
+          buffer = extractInlineData(metaBuffer, ext);
+        } catch (metaErr) {
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
 
     if (action === 'read') {
       // Read text content
@@ -61,8 +158,14 @@ export async function GET(request) {
     }
 
     // Default: stream file back
-    const mimeType = getMimeType(objectName);
-    const fileName = objectName.split('/').pop();
+    const cleanName = objectName.replace(/\/$/, '');
+    const mimeType = getMimeType(cleanName);
+    
+    let fileName = cleanName.split('/').pop();
+    if (!fileName && objectName.endsWith('/')) {
+      const parts = objectName.split('/').filter(Boolean);
+      fileName = parts.pop();
+    }
     
     const headers = {
       'Content-Type': mimeType,
@@ -150,10 +253,12 @@ export async function PUT(request) {
       return NextResponse.json({ success: false, error: 'Bucket, objectName, and content are required' }, { status: 400 });
     }
 
+    const resolvedObjectName = resolveActualObjectName(objectName);
     const buffer = Buffer.from(content, 'utf-8');
-    const mimeType = getMimeType(objectName);
+    const cleanName = objectName.replace(/\/$/, '');
+    const mimeType = getMimeType(cleanName);
 
-    await client.putObject(bucketName, objectName, buffer, buffer.length, {
+    await client.putObject(bucketName, resolvedObjectName, buffer, buffer.length, {
       'Content-Type': mimeType,
     });
 

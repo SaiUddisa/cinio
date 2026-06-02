@@ -64,12 +64,14 @@ export default function Home() {
 
   // Selected item / preview & edit
   const [selectedItem, setSelectedItem] = useState(null);
+  const [previewError, setPreviewError] = useState(false);
   const [editorContent, setEditorContent] = useState('');
   const [isEditorDirty, setIsEditorDirty] = useState(false);
   const [isSavingFile, setIsSavingFile] = useState(false);
 
   // Drag and drop state
   const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
 
   const [uploadStatus, setUploadStatus] = useState({
@@ -518,20 +520,32 @@ export default function Home() {
   };
 
   // Drag and drop handlers
-  const handleDragOver = (e) => {
+  const handleDragEnter = (e) => {
     e.preventDefault();
-    if (activeBucket) {
+    if (!activeBucket) return;
+    dragCounter.current++;
+    if (dragCounter.current === 1) {
       setIsDragging(true);
     }
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    if (!activeBucket) return;
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
+    dragCounter.current = 0;
     if (activeBucket && e.dataTransfer.files.length > 0) {
       uploadFiles(e.dataTransfer.files);
     }
@@ -570,6 +584,7 @@ export default function Home() {
   // View / Read File Details
   const handleViewFile = async (item) => {
     setSelectedItem(item);
+    setPreviewError(false);
     setEditorContent('');
     setIsEditorDirty(false);
 
@@ -772,7 +787,8 @@ export default function Home() {
 
   // Get preview helper type
   const getPreviewType = (fileName) => {
-    const ext = fileName.split('.').pop().toLowerCase();
+    const cleanName = fileName.replace(/\/$/, '');
+    const ext = cleanName.split('.').pop().toLowerCase();
     if (ext === 'pdf') return 'pdf';
     const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
     const videoExts = ['mp4', 'webm', 'ogg', 'mov'];
@@ -793,7 +809,8 @@ export default function Home() {
   const getFileIcon = (itemName, itemType) => {
     if (itemType === 'folder') return <Folder size={24} />;
 
-    const ext = itemName.split('.').pop().toLowerCase();
+    const cleanName = itemName.replace(/\/$/, '');
+    const ext = cleanName.split('.').pop().toLowerCase();
     const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
     const videoExts = ['mp4', 'webm', 'ogg', 'mov'];
     const audioExts = ['mp3', 'wav', 'ogg', 'aac'];
@@ -864,7 +881,14 @@ export default function Home() {
   };
 
   return (
-    <div className="app-container" style={containerStyle} onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div
+      className="app-container"
+      style={containerStyle}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
 
       {/* Toast Notifications */}
       <div className="toast-container">
@@ -1569,6 +1593,25 @@ export default function Home() {
                 </div>
               ) : selectedItem.type === 'file' ? (
                 (() => {
+                  if (previewError) {
+                    return (
+                      <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px 24px' }}>
+                        <FileText size={48} style={{ margin: '0 auto 16px', color: 'var(--text-muted)' }} />
+                        <p style={{ fontWeight: 500, color: 'var(--text-primary)' }}>Unable to load preview inline</p>
+                        <p style={{ fontSize: '13px', marginTop: '6px', color: 'var(--text-muted)' }}>This file cannot be previewed directly due to format, CORS, or storage limits.</p>
+                        <a
+                          className="btn btn-primary"
+                          style={{ marginTop: '20px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', margin: '20px auto 0' }}
+                          href={getObjectUrl(selectedItem, 'download')}
+                          download={selectedItem.displayName}
+                        >
+                          <Download size={14} />
+                          Download File
+                        </a>
+                      </div>
+                    );
+                  }
+
                   const type = getPreviewType(selectedItem.name);
                   if (type === 'pdf') {
                     return (
@@ -1585,11 +1628,7 @@ export default function Home() {
                         src={getObjectUrl(selectedItem, 'view')}
                         alt={selectedItem.displayName}
                         className="media-preview-img"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = '';
-                          showToast('Unable to preview image directly. Check credentials/CORS or download instead.', 'error');
-                        }}
+                        onError={() => setPreviewError(true)}
                       />
                     );
                   }
@@ -1599,7 +1638,7 @@ export default function Home() {
                         src={getObjectUrl(selectedItem, 'view')}
                         className="media-preview-player"
                         controls
-                        onError={() => showToast('Unable to preview video directly.', 'error')}
+                        onError={() => setPreviewError(true)}
                       />
                     );
                   }
@@ -1609,7 +1648,7 @@ export default function Home() {
                         src={getObjectUrl(selectedItem, 'view')}
                         className="media-preview-player"
                         controls
-                        onError={() => showToast('Unable to preview audio directly.', 'error')}
+                        onError={() => setPreviewError(true)}
                       />
                     );
                   }

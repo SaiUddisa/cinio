@@ -25,7 +25,32 @@ export async function GET(request) {
         // The prefix looks like "folder/subfolder/"
         // Leaf name is the last segment before the trailing slash
         const parts = item.prefix.split('/');
-        const name = parts[parts.length - 2] + '/';
+        const folderName = parts[parts.length - 2]; // e.g. "Inst_Pre_Tension_v2.pdf"
+
+        // Check if this is a raw MinIO backend disk leak (ends with a standard file extension)
+        const dotIndex = folderName.lastIndexOf('.');
+        const hasExtension = dotIndex !== -1 && dotIndex < folderName.length - 1;
+        const extension = hasExtension ? folderName.substring(dotIndex + 1).toLowerCase() : '';
+        const commonExtensions = [
+          'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md',
+          'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'mp4', 'webm',
+          'ogg', 'mov', 'mp3', 'wav', 'aac', 'zip', 'tar', 'gz', 'json', 'toml',
+          'xml', 'html', 'css', 'js', 'py', 'sh', 'go', 'rs'
+        ];
+
+        if (hasExtension && commonExtensions.includes(extension)) {
+          // Treat it as a file!
+          return {
+            name: item.prefix, // keep prefix with trailing slash
+            displayName: folderName, // e.g. "Inst_Pre_Tension_v2.pdf"
+            type: 'file',
+            size: 0,
+            lastModified: null,
+            isBackendLeak: true
+          };
+        }
+
+        const name = folderName + '/';
         return {
           name: item.prefix,
           displayName: name,
