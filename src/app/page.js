@@ -77,7 +77,6 @@ export default function Home() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
-  const [totalItems, setTotalItems] = useState(0);
 
   const [uploadStatus, setUploadStatus] = useState({
     isUploading: false,
@@ -105,27 +104,6 @@ export default function Home() {
   useEffect(() => {
     setCurrentPage(1);
   }, [prefix, activeBucket, searchQuery, itemsPerPage]);
-
-  // Debounce search query
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 300);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery]);
-
-  // Fetch objects when active bucket, prefix, page, itemsPerPage, or search query changes
-  useEffect(() => {
-    if (activeProfileId && activeBucket) {
-      fetchObjects(currentPage, itemsPerPage, debouncedSearchQuery);
-    } else {
-      setItems([]);
-    }
-  }, [activeProfileId, activeBucket, prefix, currentPage, itemsPerPage, debouncedSearchQuery]);
 
   // --- INITIAL LOADING ---
   useEffect(() => {
@@ -197,7 +175,14 @@ export default function Home() {
     }
   }, [activeProfileId, profiles]);
 
-  // (Fetch objects is handled by the debounced pagination useEffect above)
+  // Fetch objects when active bucket or prefix changes
+  useEffect(() => {
+    if (activeProfileId && activeBucket) {
+      fetchObjects();
+    } else {
+      setItems([]);
+    }
+  }, [activeBucket, prefix]);
 
   // Toast notification helper
   const showToast = (message, type = 'success') => {
@@ -310,7 +295,7 @@ export default function Home() {
   };
 
   // Fetch objects
-  const fetchObjects = async (page = currentPage, limit = itemsPerPage, search = debouncedSearchQuery) => {
+  const fetchObjects = async () => {
     const profile = getActiveProfile();
     if (!profile || !activeBucket) return;
 
@@ -318,10 +303,7 @@ export default function Home() {
     try {
       const query = new URLSearchParams({
         bucket: activeBucket,
-        prefix: prefix,
-        page: page.toString(),
-        limit: limit.toString(),
-        search: search || ''
+        prefix: prefix
       });
       const response = await fetch(`/api/minio/objects?${query.toString()}`, {
         headers: getHeaders(profile)
@@ -329,7 +311,6 @@ export default function Home() {
       const data = await response.json();
       if (data.success) {
         setItems(data.items);
-        setTotalItems(data.total || 0);
       } else {
         showToast(`Error listing objects: ${data.error}`, 'error');
       }
@@ -891,14 +872,17 @@ export default function Home() {
     return list;
   };
 
-  // Filter items in explorer (handled on the server side)
-  const filteredItems = items;
-  const paginatedItems = items;
+  // Filter items in explorer
+  const filteredItems = items.filter(item => {
+    const matchSearch = item.displayName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchSearch;
+  });
 
-  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1;
   const activePage = Math.min(currentPage, totalPages);
   const startIndex = (activePage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, endIndex);
 
   const getPageNumbers = () => {
     const pages = [];
