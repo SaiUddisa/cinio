@@ -1287,6 +1287,9 @@ body {
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 .pagination-select:focus {
