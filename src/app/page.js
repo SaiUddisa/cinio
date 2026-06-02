@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Server, HardDrive, Folder, File, FolderPlus, Upload, Trash2,
   Edit, Download, Search, Grid, List, RefreshCw, Plus, X,
-  ChevronLeft, ChevronRight, FileText, Image as ImageIcon, Video as VideoIcon,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, Image as ImageIcon, Video as VideoIcon,
   Music, Code, Copy, ExternalLink, Key, Check, Info, AlertTriangle,
   Play, Settings, Eye, LogOut, ArrowLeft, ArrowUp, MoreVertical
 } from 'lucide-react';
@@ -74,6 +74,11 @@ export default function Home() {
   const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [totalItems, setTotalItems] = useState(0);
+
   const [uploadStatus, setUploadStatus] = useState({
     isUploading: false,
     totalFiles: 0,
@@ -95,6 +100,32 @@ export default function Home() {
       window.removeEventListener('click', handleOutsideClick);
     };
   }, []);
+
+  // Reset pagination when folder, bucket, search, or itemsPerPage changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [prefix, activeBucket, searchQuery, itemsPerPage]);
+
+  // Debounce search query
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  // Fetch objects when active bucket, prefix, page, itemsPerPage, or search query changes
+  useEffect(() => {
+    if (activeProfileId && activeBucket) {
+      fetchObjects(currentPage, itemsPerPage, debouncedSearchQuery);
+    } else {
+      setItems([]);
+    }
+  }, [activeProfileId, activeBucket, prefix, currentPage, itemsPerPage, debouncedSearchQuery]);
 
   // --- INITIAL LOADING ---
   useEffect(() => {
@@ -166,14 +197,7 @@ export default function Home() {
     }
   }, [activeProfileId, profiles]);
 
-  // Fetch objects when active bucket or prefix changes
-  useEffect(() => {
-    if (activeProfileId && activeBucket) {
-      fetchObjects();
-    } else {
-      setItems([]);
-    }
-  }, [activeBucket, prefix]);
+  // (Fetch objects is handled by the debounced pagination useEffect above)
 
   // Toast notification helper
   const showToast = (message, type = 'success') => {
@@ -286,7 +310,7 @@ export default function Home() {
   };
 
   // Fetch objects
-  const fetchObjects = async () => {
+  const fetchObjects = async (page = currentPage, limit = itemsPerPage, search = debouncedSearchQuery) => {
     const profile = getActiveProfile();
     if (!profile || !activeBucket) return;
 
@@ -294,7 +318,10 @@ export default function Home() {
     try {
       const query = new URLSearchParams({
         bucket: activeBucket,
-        prefix: prefix
+        prefix: prefix,
+        page: page.toString(),
+        limit: limit.toString(),
+        search: search || ''
       });
       const response = await fetch(`/api/minio/objects?${query.toString()}`, {
         headers: getHeaders(profile)
@@ -302,6 +329,7 @@ export default function Home() {
       const data = await response.json();
       if (data.success) {
         setItems(data.items);
+        setTotalItems(data.total || 0);
       } else {
         showToast(`Error listing objects: ${data.error}`, 'error');
       }
@@ -863,11 +891,52 @@ export default function Home() {
     return list;
   };
 
-  // Filter items in explorer
-  const filteredItems = items.filter(item => {
-    const matchSearch = item.displayName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchSearch;
-  });
+  // Filter items in explorer (handled on the server side)
+  const filteredItems = items;
+  const paginatedItems = items;
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const activePage = Math.min(currentPage, totalPages);
+  const startIndex = (activePage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      let start = Math.max(2, activePage - 1);
+      let end = Math.min(totalPages - 1, activePage + 1);
+      
+      if (activePage <= 2) {
+        end = 4;
+      } else if (activePage >= totalPages - 1) {
+        start = totalPages - 3;
+      }
+      
+      if (start > 2) {
+        pages.push('...');
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      if (end < totalPages - 1) {
+        pages.push('...');
+      }
+      
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
 
   const activeProfile = getActiveProfile();
 
@@ -1320,7 +1389,7 @@ export default function Home() {
                 )}
 
                 {/* Display Folders & Files */}
-                {filteredItems.map(item => (
+                {paginatedItems.map(item => (
                   <div
                     key={item.name}
                     className={`item-card ${item.type === 'folder' ? 'folder-card' : ''} ${selectedItem?.name === item.name ? 'selected' : ''}`}
@@ -1436,7 +1505,7 @@ export default function Home() {
                 )}
 
                 {/* Listing rows */}
-                {filteredItems.map(item => (
+                {paginatedItems.map(item => (
                   <div
                     key={item.name}
                     className={`item-list-row ${item.type === 'folder' ? 'folder-row' : ''}`}
@@ -1537,6 +1606,76 @@ export default function Home() {
             )
           )}
         </div>
+
+        {/* Pagination Bar */}
+        {activeBucket && filteredItems.length > 0 && (
+          <div className="pagination-container">
+            <div className="pagination-info">
+              Showing <strong>{Math.min(filteredItems.length, startIndex + 1)}</strong> to <strong>{Math.min(filteredItems.length, endIndex)}</strong> of <strong>{filteredItems.length}</strong> items
+            </div>
+            
+            <div className="pagination-controls">
+              <button
+                className="pagination-btn"
+                onClick={() => setCurrentPage(1)}
+                disabled={activePage === 1}
+                title="First Page"
+              >
+                <ChevronsLeft size={16} />
+              </button>
+              <button
+                className="pagination-btn"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={activePage === 1}
+                title="Previous Page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              {getPageNumbers().map((pg, idx) => (
+                <button
+                  key={idx}
+                  className={`pagination-btn ${pg === activePage ? 'active' : ''}`}
+                  disabled={pg === '...'}
+                  onClick={() => pg !== '...' && setCurrentPage(pg)}
+                >
+                  {pg}
+                </button>
+              ))}
+              
+              <button
+                className="pagination-btn"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={activePage === totalPages}
+                title="Next Page"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                className="pagination-btn"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={activePage === totalPages}
+                title="Last Page"
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </div>
+            
+            <div className="pagination-select-wrapper">
+              <span>Items per page:</span>
+              <select
+                className="pagination-select"
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={75}>75</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {/* --- DYNAMIC SLIDE-IN SIDE PANEL (Viewer & Editor) --- */}
         {selectedItem && (
